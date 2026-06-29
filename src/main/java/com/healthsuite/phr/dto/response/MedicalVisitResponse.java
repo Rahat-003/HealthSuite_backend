@@ -14,6 +14,7 @@ public record MedicalVisitResponse(
         String doctorSpecialty,
         String hospitalName,
         String notes,
+        List<DiagnosisResponse> diagnoses,
         List<MedicationResponse> medications,
         List<VisitDocumentResponse> documents,
         LocalDateTime createdAt
@@ -27,6 +28,7 @@ public record MedicalVisitResponse(
                 visit.getDoctorSpecialty(),
                 visit.getHospitalName(),
                 visit.getNotes(),
+                visit.getDiagnoses().stream().map(DiagnosisResponse::from).toList(),
                 visit.getMedications().stream().map(MedicationResponse::from).toList(),
                 visit.getDocuments().stream().map(VisitDocumentResponse::from).toList(),
                 visit.getCreatedAt()
