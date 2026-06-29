@@ -1,0 +1,41 @@
+# Maven build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Environment / secrets — NEVER commit these
+.env
+.env.*
+!.env.example
+firebase-service-account.json
+*.pem
+*.key
+*.p12
+*.jks
+
+# IDE — IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# IDE — VS Code
+.vscode/
+
+# IDE — Eclipse
+.project
+.classpath
+.settings/
+.factorypath
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Spring Boot DevTools restart trigger
+.reloadtrigger
