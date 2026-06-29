@@ -45,6 +45,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/doctors/**").permitAll()
                         // Share-token based record access — validation done in service layer
                         .requestMatchers(HttpMethod.GET, "/api/phr/shared/**").permitAll()
+                        // Local file storage — served without auth
+                        .requestMatchers("/files/**").permitAll()
                         // Actuator health
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         // Support-only ticket operations

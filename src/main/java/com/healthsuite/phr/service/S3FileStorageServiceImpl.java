@@ -3,6 +3,7 @@ package com.healthsuite.phr.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -14,6 +15,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 @Service
+@ConditionalOnProperty(name = "app.storage.provider", havingValue = "s3")
 @RequiredArgsConstructor
 @Slf4j
 public class S3FileStorageServiceImpl implements FileStorageService {

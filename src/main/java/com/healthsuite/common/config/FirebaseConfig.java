@@ -20,12 +20,16 @@ import java.io.InputStream;
 @Slf4j
 public class FirebaseConfig {
 
-    @Value("${app.firebase.service-account-path}")
+    @Value("${app.firebase.service-account-path:}")
     private String serviceAccountPath;
 
     @PostConstruct
     public void initializeFirebase() {
         if (!FirebaseApp.getApps().isEmpty()) {
+            return;
+        }
+        if (serviceAccountPath == null || serviceAccountPath.isBlank()) {
+            log.info("Firebase service account path not configured — push notifications disabled");
             return;
         }
         try {

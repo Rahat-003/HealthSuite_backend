@@ -58,22 +58,30 @@ app:
     access-token-expiration-ms: 900000     # 15 minutes
     refresh-token-expiration-ms: 604800000 # 7 days
 
-  aws:
-    s3:
-      bucket-name: ${S3_BUCKET_NAME:healthsuite-documents}
-      region: ${AWS_REGION:ap-southeast-1}
-      access-key: ${AWS_ACCESS_KEY:}
-      secret-key: ${AWS_SECRET_KEY:}
+  # File storage — 'local' uses ~/HealthSuite/uploads, switch to 's3' when ready
+  storage:
+    provider: local
+    local:
+      path: ${user.home}/HealthSuite/uploads
 
-  firebase:
-    service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:classpath:firebase-service-account.json}
+  # ── Add when ready ────────────────────────────────────────────────────────
+  # aws:
+  #   s3:
+  #     bucket-name: ${S3_BUCKET_NAME:healthsuite-documents}
+  #     region: ${AWS_REGION:ap-southeast-1}
+  #     access-key: ${AWS_ACCESS_KEY:}
+  #     secret-key: ${AWS_SECRET_KEY:}
 
-  social:
-    google:
-      client-id: ${GOOGLE_CLIENT_ID:}
-    facebook:
-      app-id: ${FACEBOOK_APP_ID:}
-      app-secret: ${FACEBOOK_APP_SECRET:}
+  # firebase:
+  #   service-account-path: ${FIREBASE_SERVICE_ACCOUNT_PATH:}
+
+  # social:
+  #   google:
+  #     client-id: ${GOOGLE_CLIENT_ID:}
+  #   facebook:
+  #     app-id: ${FACEBOOK_APP_ID:}
+  #     app-secret: ${FACEBOOK_APP_SECRET:}
+  # ─────────────────────────────────────────────────────────────────────────
 
   scraper:
     target-urls:

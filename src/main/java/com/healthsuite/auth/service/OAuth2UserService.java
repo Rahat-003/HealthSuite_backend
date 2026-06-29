@@ -29,13 +29,13 @@ import java.util.Optional;
 @Slf4j
 public class OAuth2UserService {
 
-    @Value("${app.social.google.client-id}")
+    @Value("${app.social.google.client-id:}")
     private String googleClientId;
 
-    @Value("${app.social.facebook.app-id}")
+    @Value("${app.social.facebook.app-id:}")
     private String facebookAppId;
 
-    @Value("${app.social.facebook.app-secret}")
+    @Value("${app.social.facebook.app-secret:}")
     private String facebookAppSecret;
 
     private final UserRepository userRepository;
