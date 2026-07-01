@@ -12,6 +12,7 @@ import com.healthsuite.phr.entity.Diagnosis;
 import com.healthsuite.phr.entity.MedicalVisit;
 import com.healthsuite.phr.entity.VisitDocument;
 import com.healthsuite.phr.repository.MedicalVisitRepository;
+import com.healthsuite.phr.repository.VisitDocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
@@ -29,6 +30,7 @@ import java.util.List;
 public class MedicalVisitService {
 
     private final MedicalVisitRepository visitRepository;
+    private final VisitDocumentRepository documentRepository;
     private final FileStorageService storageService;
     private final FamilyMeshService familyMeshService;
 
@@ -133,5 +135,15 @@ public class MedicalVisitService {
                 .orElseThrow(() -> new ResourceNotFoundException("MedicalVisit", visitId));
         visit.getDocuments().forEach(doc -> storageService.deleteFile(doc.getFileUrl()));
         visitRepository.delete(visit);
+    }
+
+    @Transactional
+    public void deleteDocument(Long visitId, Long documentId, Long userId) {
+        visitRepository.findByIdAndUserId(visitId, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("MedicalVisit", visitId));
+        VisitDocument doc = documentRepository.findByIdAndVisitId(documentId, visitId)
+                .orElseThrow(() -> new ResourceNotFoundException("VisitDocument", documentId));
+        storageService.deleteFile(doc.getFileUrl());
+        documentRepository.delete(doc);
     }
 }

@@ -81,6 +81,16 @@ public class MedicalVisitController {
         return ResponseEntity.ok(ApiResponse.ok("Visit deleted"));
     }
 
+    @Operation(summary = "Delete a document from a visit")
+    @DeleteMapping("/visits/{visitId}/documents/{documentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteDocument(
+            @PathVariable Long visitId,
+            @PathVariable Long documentId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        visitService.deleteDocument(visitId, documentId, principal.getId());
+        return ResponseEntity.ok(ApiResponse.ok("Document deleted"));
+    }
+
     // Share-token access path — authentication is ShareTokenAuthentication set by filter
     @GetMapping("/shared/visit/{visitId}")
     public ResponseEntity<ApiResponse<MedicalVisitResponse>> getSharedVisit(
