@@ -5,17 +5,21 @@ import com.healthsuite.common.response.ApiResponse;
 import com.healthsuite.common.response.PagedResponse;
 import com.healthsuite.marketplace.dto.request.CreateConsultationRequest;
 import com.healthsuite.marketplace.dto.request.DoctorRegistrationRequest;
+import com.healthsuite.marketplace.dto.response.ConsultationMediaResponse;
 import com.healthsuite.marketplace.dto.response.ConsultationRequestResponse;
 import com.healthsuite.marketplace.dto.response.DoctorProfileResponse;
+import com.healthsuite.marketplace.enums.ConsultationMediaType;
 import com.healthsuite.marketplace.service.MarketplaceService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -84,5 +88,16 @@ public class MarketplaceController {
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getConsultation(id, principal.getId())));
+    }
+
+    @PostMapping(value = "/consultations/{id}/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<ConsultationMediaResponse>> uploadMedia(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("type") ConsultationMediaType type,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.ok("Media uploaded successfully.",
+                marketplaceService.uploadMedia(id, principal.getId(), file, type)));
     }
 }

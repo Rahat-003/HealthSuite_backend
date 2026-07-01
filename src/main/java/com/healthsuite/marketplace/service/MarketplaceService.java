@@ -10,12 +10,16 @@ import com.healthsuite.common.exception.ResourceNotFoundException;
 import com.healthsuite.common.response.PagedResponse;
 import com.healthsuite.marketplace.dto.request.CreateConsultationRequest;
 import com.healthsuite.marketplace.dto.request.DoctorRegistrationRequest;
+import com.healthsuite.marketplace.dto.response.ConsultationMediaResponse;
 import com.healthsuite.marketplace.dto.response.ConsultationRequestResponse;
 import com.healthsuite.marketplace.dto.response.DoctorProfileResponse;
+import com.healthsuite.marketplace.entity.ConsultationMedia;
 import com.healthsuite.marketplace.entity.ConsultationOffer;
 import com.healthsuite.marketplace.entity.ConsultationRequest;
 import com.healthsuite.marketplace.entity.DoctorProfile;
+import com.healthsuite.marketplace.enums.ConsultationMediaType;
 import com.healthsuite.marketplace.enums.DoctorStatus;
+import com.healthsuite.marketplace.repository.ConsultationMediaRepository;
 import com.healthsuite.marketplace.repository.ConsultationRequestRepository;
 import com.healthsuite.marketplace.repository.DoctorProfileRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +29,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,6 +41,8 @@ public class MarketplaceService {
 
     private final DoctorProfileRepository doctorProfileRepository;
     private final ConsultationRequestRepository consultationRequestRepository;
+    private final ConsultationMediaRepository consultationMediaRepository;
+    private final ConsultationMediaStorageService mediaStorageService;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
 
@@ -133,7 +140,7 @@ public class MarketplaceService {
     public List<ConsultationRequestResponse> getMyConsultations(Long patientId) {
         return consultationRequestRepository.findByPatientId(patientId)
             .stream()
-            .map(ConsultationRequestResponse::from)
+            .map(r -> ConsultationRequestResponse.from(r, consultationMediaRepository.findByConsultationId(r.getId())))
             .toList();
     }
 
@@ -144,7 +151,31 @@ public class MarketplaceService {
         if (!req.getPatientId().equals(patientId)) {
             throw new AccessDeniedException("Access denied");
         }
-        return ConsultationRequestResponse.from(req);
+        return ConsultationRequestResponse.from(req, consultationMediaRepository.findByConsultationId(id));
+    }
+
+    @Transactional
+    public ConsultationMediaResponse uploadMedia(Long consultationId, Long userId, MultipartFile file, ConsultationMediaType type) {
+        ConsultationRequest req = consultationRequestRepository.findById(consultationId)
+            .orElseThrow(() -> new ResourceNotFoundException("ConsultationRequest", consultationId));
+        if (!req.getPatientId().equals(userId)) {
+            throw new AccessDeniedException("Access denied");
+        }
+
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+        ConsultationMediaStorageService.StoredFile stored = mediaStorageService.store(file);
+
+        ConsultationMedia media = ConsultationMedia.builder()
+            .consultationId(consultationId)
+            .userUuid(user.getUserUuid())
+            .fileName(stored.fileName())
+            .filePath(stored.filePath())
+            .mediaType(type)
+            .build();
+
+        return ConsultationMediaResponse.from(consultationMediaRepository.save(media));
     }
 
     // ── Admin operations ───────────────────────────────────────────────────

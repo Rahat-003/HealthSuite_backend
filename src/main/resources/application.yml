@@ -63,6 +63,8 @@ app:
     provider: local
     local:
       path: ${user.home}/HealthSuite/uploads
+    consult:
+      path: ${user.home}/HealthSuite/user_consult
 
   # ── Add when ready ────────────────────────────────────────────────────────
   # aws:
