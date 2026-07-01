@@ -3,6 +3,7 @@ package com.healthsuite.phr.controller;
 import com.healthsuite.auth.security.UserPrincipal;
 import com.healthsuite.common.response.ApiResponse;
 import com.healthsuite.phr.dto.request.AddMedicationRequest;
+import com.healthsuite.phr.dto.request.UpdateMedicationRequest;
 import com.healthsuite.phr.dto.response.MedicationResponse;
 import com.healthsuite.phr.service.MedicationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,6 +41,17 @@ public class MedicationController {
             @PathVariable Long visitId,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(ApiResponse.ok(medicationService.getMedications(visitId, principal.getId())));
+    }
+
+    @Operation(summary = "Update a medication")
+    @PutMapping("/{medicationId}")
+    public ResponseEntity<ApiResponse<MedicationResponse>> updateMedication(
+            @PathVariable Long visitId,
+            @PathVariable Long medicationId,
+            @Valid @RequestBody UpdateMedicationRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.ok("Medication updated",
+                medicationService.updateMedication(visitId, medicationId, principal.getId(), request)));
     }
 
     @DeleteMapping("/{medicationId}")
