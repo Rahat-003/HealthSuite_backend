@@ -1,19 +1,26 @@
 package com.healthsuite.marketplace.controller;
 
 import com.healthsuite.auth.security.UserPrincipal;
+import com.healthsuite.common.exception.ResourceNotFoundException;
 import com.healthsuite.common.response.ApiResponse;
 import com.healthsuite.common.response.PagedResponse;
 import com.healthsuite.marketplace.dto.request.CreateConsultationRequest;
 import com.healthsuite.marketplace.dto.request.DoctorRegistrationRequest;
 import com.healthsuite.marketplace.dto.response.ConsultationMediaResponse;
 import com.healthsuite.marketplace.dto.response.ConsultationRequestResponse;
+import com.healthsuite.marketplace.dto.response.DoctorDocumentResponse;
 import com.healthsuite.marketplace.dto.response.DoctorProfileResponse;
+import com.healthsuite.marketplace.entity.ConsultationMedia;
 import com.healthsuite.marketplace.enums.ConsultationMediaType;
+import com.healthsuite.marketplace.enums.DoctorDocumentType;
 import com.healthsuite.marketplace.service.MarketplaceService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +28,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 @RestController
@@ -66,6 +77,16 @@ public class MarketplaceController {
         return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getMyDoctorProfile(principal.getId())));
     }
 
+    @PostMapping(value = "/doctors/me/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<DoctorDocumentResponse>> uploadDoctorDocument(
+            @RequestPart("file") MultipartFile file,
+            @RequestParam("type") DoctorDocumentType type,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(ApiResponse.ok("Document uploaded.",
+                marketplaceService.uploadDoctorDocument(principal.getId(), file, type)));
+    }
+
     // ── Consultation requests ─────────────────────────────────────────────
 
     @PostMapping("/consultations")
@@ -99,5 +120,25 @@ public class MarketplaceController {
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.ok("Media uploaded successfully.",
                 marketplaceService.uploadMedia(id, principal.getId(), file, type)));
+    }
+
+    @GetMapping("/consultations/{id}/media/{mediaId}/download")
+    public ResponseEntity<Resource> downloadMedia(
+            @PathVariable Long id,
+            @PathVariable Long mediaId,
+            @AuthenticationPrincipal UserPrincipal principal) throws IOException {
+        ConsultationMedia media = marketplaceService.getMediaForDownload(id, mediaId, principal.getId());
+
+        Path path = Paths.get(media.getFilePath());
+        if (!Files.exists(path)) {
+            throw new ResourceNotFoundException("Media file missing on disk", mediaId);
+        }
+        String contentType = Files.probeContentType(path);
+
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType(
+                contentType != null ? contentType : MediaType.APPLICATION_OCTET_STREAM_VALUE))
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + media.getFileName() + "\"")
+            .body(new FileSystemResource(path));
     }
 }

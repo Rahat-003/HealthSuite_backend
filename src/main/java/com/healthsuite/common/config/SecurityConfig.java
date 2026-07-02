@@ -59,6 +59,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/concierge/tickets/*/claim").hasRole("SUPPORT")
                         .requestMatchers(HttpMethod.PUT, "/api/concierge/tickets/*/confirm").hasRole("SUPPORT")
                         .requestMatchers(HttpMethod.PUT, "/api/concierge/tickets/*/cancel").hasRole("SUPPORT")
+                        // Doctor workspace
+                        .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
                         // Admin-only
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // All other requests require authentication

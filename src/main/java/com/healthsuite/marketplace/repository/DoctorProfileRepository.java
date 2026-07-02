@@ -22,11 +22,13 @@ public interface DoctorProfileRepository extends JpaRepository<DoctorProfile, Lo
 
     Page<DoctorProfile> findByStatus(DoctorStatus status, Pageable pageable);
 
+    long countByStatus(DoctorStatus status);
+
     @Query("""
         SELECT d FROM DoctorProfile d
         WHERE d.status = 'ACTIVE'
-        AND (:specialty IS NULL OR LOWER(d.specialty) = LOWER(:specialty))
-        AND (:search IS NULL OR
+        AND (:specialty = '' OR LOWER(d.specialty) = LOWER(:specialty))
+        AND (:search = '' OR
              LOWER(d.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR
              LOWER(d.specialty) LIKE LOWER(CONCAT('%', :search, '%')) OR
              LOWER(d.hospitalAffiliation) LIKE LOWER(CONCAT('%', :search, '%')))
