@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Set;
 
 @Service
@@ -70,6 +71,24 @@ public class UserService {
             user.setFcmToken(fcmToken);
         }
         userRepository.save(user);
+    }
+
+    // ── Admin: user management ───────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<User> listUsers() {
+        return userRepository.findAllWithRoles();
+    }
+
+    @Transactional
+    public User setUserEnabled(Long userId, boolean enabled) {
+        User user = findById(userId);
+        boolean isAdmin = user.getRoles().stream().anyMatch(r -> r.getName() == RoleName.ROLE_ADMIN);
+        if (isAdmin && !enabled) {
+            throw new BadRequestException("Admin accounts cannot be disabled.");
+        }
+        user.setActive(enabled);
+        return userRepository.save(user);
     }
 
     @Transactional
