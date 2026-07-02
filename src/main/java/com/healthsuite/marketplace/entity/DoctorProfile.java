@@ -59,6 +59,10 @@ public class DoctorProfile extends BaseEntity {
     @Column(name = "profile_photo_url", length = 1000)
     private String profilePhotoUrl;
 
+    @Column(name = "is_available", nullable = false)
+    @Builder.Default
+    private boolean isAvailable = true;
+
     @Column(nullable = false, precision = 3, scale = 2)
     @Builder.Default
     private BigDecimal rating = BigDecimal.ZERO;

@@ -10,6 +10,7 @@ import com.healthsuite.marketplace.dto.response.ConsultationMediaResponse;
 import com.healthsuite.marketplace.dto.response.ConsultationRequestResponse;
 import com.healthsuite.marketplace.dto.response.DoctorDocumentResponse;
 import com.healthsuite.marketplace.dto.response.DoctorProfileResponse;
+import com.healthsuite.marketplace.dto.response.SpecialtyResponse;
 import com.healthsuite.marketplace.entity.ConsultationMedia;
 import com.healthsuite.marketplace.enums.ConsultationMediaType;
 import com.healthsuite.marketplace.enums.DoctorDocumentType;
@@ -41,6 +42,13 @@ import java.util.List;
 public class MarketplaceController {
 
     private final MarketplaceService marketplaceService;
+
+    // ── Specialty catalog (public) ────────────────────────────────────────
+
+    @GetMapping("/specialties")
+    public ResponseEntity<ApiResponse<List<SpecialtyResponse>>> listSpecialties() {
+        return ResponseEntity.ok(ApiResponse.ok(marketplaceService.listSpecialties()));
+    }
 
     // ── Doctor listing (public) ───────────────────────────────────────────
 
@@ -77,6 +85,15 @@ public class MarketplaceController {
         return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getMyDoctorProfile(principal.getId())));
     }
 
+    @PutMapping("/doctors/me/availability")
+    public ResponseEntity<ApiResponse<DoctorProfileResponse>> setAvailability(
+            @RequestParam("available") boolean available,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.ok(
+            available ? "You are now accepting new cases." : "You are now unavailable.",
+            marketplaceService.setAvailability(principal.getId(), available)));
+    }
+
     @PostMapping(value = "/doctors/me/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<DoctorDocumentResponse>> uploadDoctorDocument(
             @RequestPart("file") MultipartFile file,
@@ -109,6 +126,14 @@ public class MarketplaceController {
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getConsultation(id, principal.getId())));
+    }
+
+    @PutMapping("/consultations/{id}/cancel")
+    public ResponseEntity<ApiResponse<ConsultationRequestResponse>> cancelConsultation(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.ok("Request cancelled and refunded",
+            marketplaceService.cancelConsultation(id, principal.getId())));
     }
 
     @PostMapping(value = "/consultations/{id}/media", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

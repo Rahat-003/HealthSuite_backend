@@ -8,6 +8,8 @@ import com.healthsuite.auth.repository.UserRepository;
 import com.healthsuite.common.exception.ConflictException;
 import com.healthsuite.common.exception.ResourceNotFoundException;
 import com.healthsuite.common.response.PagedResponse;
+import com.healthsuite.common.settings.PlatformSettings;
+import com.healthsuite.common.settings.PlatformSettingsService;
 import com.healthsuite.marketplace.dto.request.CreateConsultationRequest;
 import com.healthsuite.marketplace.dto.request.DoctorRegistrationRequest;
 import com.healthsuite.marketplace.dto.response.AdminMarketplaceStatsResponse;
@@ -21,7 +23,9 @@ import com.healthsuite.marketplace.entity.ConsultationRequest;
 import com.healthsuite.marketplace.entity.DoctorDocument;
 import com.healthsuite.marketplace.entity.DoctorProfile;
 import com.healthsuite.marketplace.enums.DoctorDocumentType;
+import com.healthsuite.marketplace.dto.response.SpecialtyResponse;
 import com.healthsuite.marketplace.repository.DoctorDocumentRepository;
+import com.healthsuite.marketplace.repository.SpecialtyRepository;
 import com.healthsuite.phr.service.FileStorageService;
 import com.healthsuite.marketplace.enums.ConsultationMediaType;
 import com.healthsuite.marketplace.enums.ConsultationStatus;
@@ -54,10 +58,12 @@ public class MarketplaceService {
     private final ConsultationMediaRepository consultationMediaRepository;
     private final ConsultationMediaStorageService mediaStorageService;
     private final DoctorDocumentRepository doctorDocumentRepository;
+    private final SpecialtyRepository specialtyRepository;
     private final DoctorDocumentStorageService doctorDocumentStorageService;
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final PlatformSettingsService platformSettingsService;
 
     // ── Doctor registration ────────────────────────────────────────────────
 
@@ -96,6 +102,20 @@ public class MarketplaceService {
             .orElseThrow(() -> new ResourceNotFoundException("DoctorProfile for user", userId));
     }
 
+    @Transactional(readOnly = true)
+    public List<SpecialtyResponse> listSpecialties() {
+        return specialtyRepository.findByIsActiveTrueOrderBySortOrderAsc()
+            .stream().map(SpecialtyResponse::from).toList();
+    }
+
+    @Transactional
+    public DoctorProfileResponse setAvailability(Long userId, boolean available) {
+        DoctorProfile profile = doctorProfileRepository.findByUserId(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("DoctorProfile for user", userId));
+        profile.setAvailable(available);
+        return DoctorProfileResponse.from(doctorProfileRepository.save(profile));
+    }
+
     // ── Public doctor browsing ─────────────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -123,13 +143,18 @@ public class MarketplaceService {
 
     @Transactional
     public ConsultationRequestResponse createConsultation(CreateConsultationRequest req, Long patientId) {
+        int maxDoctors = platformSettingsService.get().getMaxDoctorsPerConsultation();
+        if (req.doctorProfileIds().size() > maxDoctors) {
+            throw new ConflictException("You can select at most " + maxDoctors + " doctor" + (maxDoctors == 1 ? "" : "s") + ".");
+        }
+
         List<DoctorProfile> doctors = doctorProfileRepository.findAllById(req.doctorProfileIds());
 
         if (doctors.size() != req.doctorProfileIds().size()) {
             throw new ResourceNotFoundException("One or more selected doctors not found");
         }
         doctors.forEach(d -> {
-            if (d.getStatus() != DoctorStatus.ACTIVE) {
+            if (d.getStatus() != DoctorStatus.ACTIVE || !d.isAvailable()) {
                 throw new ConflictException("Doctor " + d.getFullName() + " is not currently accepting consultations.");
             }
         });
@@ -152,9 +177,12 @@ public class MarketplaceService {
 
     @Transactional(readOnly = true)
     public List<ConsultationRequestResponse> getMyConsultations(Long patientId) {
+        int cancelWaitHours = platformSettingsService.get().getConsultationCancelWaitHours();
         return consultationRequestRepository.findByPatientId(patientId)
             .stream()
-            .map(r -> ConsultationRequestResponse.from(r, consultationMediaRepository.findByConsultationId(r.getId())))
+            .map(r -> ConsultationRequestResponse.from(
+                r, consultationMediaRepository.findByConsultationId(r.getId()), null, cancelWaitHours
+            ))
             .toList();
     }
 
@@ -165,7 +193,39 @@ public class MarketplaceService {
         if (!req.getPatientId().equals(patientId)) {
             throw new AccessDeniedException("Access denied");
         }
-        return ConsultationRequestResponse.from(req, consultationMediaRepository.findByConsultationId(id));
+        int cancelWaitHours = platformSettingsService.get().getConsultationCancelWaitHours();
+        return ConsultationRequestResponse.from(
+            req, consultationMediaRepository.findByConsultationId(id), null, cancelWaitHours
+        );
+    }
+
+    @Transactional
+    public ConsultationRequestResponse cancelConsultation(Long id, Long patientId) {
+        ConsultationRequest req = consultationRequestRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("ConsultationRequest", id));
+        if (!req.getPatientId().equals(patientId)) {
+            throw new AccessDeniedException("Access denied");
+        }
+        if (req.getStatus() != ConsultationStatus.QUEUED) {
+            throw new ConflictException("Only pending requests awaiting a doctor can be cancelled.");
+        }
+
+        int cancelWaitHours = platformSettingsService.get().getConsultationCancelWaitHours();
+        LocalDateTime cancelAvailableAt = req.getCreatedAt().plusHours(cancelWaitHours);
+        if (LocalDateTime.now().isBefore(cancelAvailableAt)) {
+            throw new ConflictException(
+                "You can cancel this request once " + cancelWaitHours + " hour"
+                    + (cancelWaitHours == 1 ? "" : "s") + " have passed with no doctor response."
+            );
+        }
+
+        req.setStatus(ConsultationStatus.REFUNDED);
+        log.info("Patient {} cancelled consultation {} — refunding ৳{}", patientId, id, req.getUpfrontAmountBdt());
+        return ConsultationRequestResponse.from(
+            consultationRequestRepository.save(req),
+            consultationMediaRepository.findByConsultationId(id),
+            null, cancelWaitHours
+        );
     }
 
     @Transactional
@@ -203,6 +263,12 @@ public class MarketplaceService {
         return profile;
     }
 
+    private String patientNameOf(ConsultationRequest request) {
+        return userRepository.findById(request.getPatientId())
+            .map(User::getFullName)
+            .orElse("Patient");
+    }
+
     @Transactional(readOnly = true)
     public List<ConsultationRequestResponse> getDoctorQueue(Long userId) {
         DoctorProfile profile = requireActiveDoctor(userId);
@@ -211,7 +277,8 @@ public class MarketplaceService {
             .stream()
             .map(o -> ConsultationRequestResponse.from(
                 o.getRequest(),
-                consultationMediaRepository.findByConsultationId(o.getRequest().getId())
+                consultationMediaRepository.findByConsultationId(o.getRequest().getId()),
+                patientNameOf(o.getRequest())
             ))
             .toList();
     }
@@ -246,7 +313,8 @@ public class MarketplaceService {
         log.info("Doctor {} accepted consultation {}", profile.getId(), consultationId);
         return ConsultationRequestResponse.from(
             consultationRequestRepository.save(request),
-            consultationMediaRepository.findByConsultationId(consultationId)
+            consultationMediaRepository.findByConsultationId(consultationId),
+            patientNameOf(request)
         );
     }
 
@@ -275,7 +343,8 @@ public class MarketplaceService {
             .stream()
             .map(o -> ConsultationRequestResponse.from(
                 o.getRequest(),
-                consultationMediaRepository.findByConsultationId(o.getRequest().getId())
+                consultationMediaRepository.findByConsultationId(o.getRequest().getId()),
+                patientNameOf(o.getRequest())
             ))
             .toList();
     }

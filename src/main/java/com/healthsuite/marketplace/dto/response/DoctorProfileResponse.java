@@ -20,6 +20,7 @@ public record DoctorProfileResponse(
     BigDecimal consultationFeeBdt,
     DoctorStatus status,
     String profilePhotoUrl,
+    boolean isAvailable,
     BigDecimal rating,
     int totalConsultations,
     LocalDateTime createdAt
@@ -30,7 +31,7 @@ public record DoctorProfileResponse(
             d.getQualifications(), d.getExperienceYears(), d.getLicenseNumber(),
             d.getBio(), d.getHospitalAffiliation(), d.getAvailabilityNote(),
             d.getConsultationFeeBdt(), d.getStatus(), d.getProfilePhotoUrl(),
-            d.getRating(), d.getTotalConsultations(), d.getCreatedAt()
+            d.isAvailable(), d.getRating(), d.getTotalConsultations(), d.getCreatedAt()
         );
     }
 }

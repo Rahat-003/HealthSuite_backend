@@ -27,6 +27,8 @@ public interface DoctorProfileRepository extends JpaRepository<DoctorProfile, Lo
     @Query("""
         SELECT d FROM DoctorProfile d
         WHERE d.status = 'ACTIVE'
+        AND d.isAvailable = TRUE
+        AND EXISTS (SELECT u FROM User u WHERE u.id = d.userId AND u.isActive = TRUE)
         AND (:specialty = '' OR LOWER(d.specialty) = LOWER(:specialty))
         AND (:search = '' OR
              LOWER(d.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR

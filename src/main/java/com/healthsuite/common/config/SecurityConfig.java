@@ -46,8 +46,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         // Doctor directory — public read
                         .requestMatchers(HttpMethod.GET, "/api/doctors/**").permitAll()
-                        // Marketplace doctor listing — public read
+                        // Marketplace doctor listing & specialty catalog — public read
                         .requestMatchers(HttpMethod.GET, "/api/marketplace/doctors", "/api/marketplace/doctors/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/marketplace/specialties").permitAll()
                         // Share-token based record access — validation done in service layer
                         .requestMatchers(HttpMethod.GET, "/api/phr/shared/**").permitAll()
                         // Local file storage — served without auth
