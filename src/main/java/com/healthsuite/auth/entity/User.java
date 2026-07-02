@@ -55,6 +55,9 @@ public class User extends BaseEntity {
     @Column(name = "fcm_token", length = 500)
     private String fcmToken;
 
+    @Column(name = "profile_photo_url", length = 1000)
+    private String profilePhotoUrl;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "user_roles",

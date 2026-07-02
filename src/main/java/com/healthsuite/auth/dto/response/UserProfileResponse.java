@@ -15,6 +15,7 @@ public record UserProfileResponse(
         boolean isPremium,
         AuthProvider authProvider,
         Set<String> roles,
+        String profilePhotoUrl,
         LocalDateTime createdAt
 ) {
     public static UserProfileResponse from(User user) {
@@ -26,6 +27,7 @@ public record UserProfileResponse(
                 user.isPremium(),
                 user.getAuthProvider(),
                 user.getRoles().stream().map(r -> r.getName().name()).collect(Collectors.toSet()),
+                user.getProfilePhotoUrl(),
                 user.getCreatedAt()
         );
     }

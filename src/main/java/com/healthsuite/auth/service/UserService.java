@@ -6,10 +6,14 @@ import com.healthsuite.auth.enums.AuthProvider;
 import com.healthsuite.auth.enums.RoleName;
 import com.healthsuite.auth.repository.RoleRepository;
 import com.healthsuite.auth.repository.UserRepository;
+import com.healthsuite.common.exception.BadRequestException;
 import com.healthsuite.common.exception.ResourceNotFoundException;
+import com.healthsuite.marketplace.repository.DoctorProfileRepository;
+import com.healthsuite.phr.service.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Set;
 
@@ -19,6 +23,8 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final FileStorageService fileStorageService;
+    private final DoctorProfileRepository doctorProfileRepository;
 
     @Transactional(readOnly = true)
     public User findById(Long id) {
@@ -64,5 +70,28 @@ public class UserService {
             user.setFcmToken(fcmToken);
         }
         userRepository.save(user);
+    }
+
+    @Transactional
+    public User updateProfilePhoto(Long userId, MultipartFile file) {
+        if (file.getContentType() == null || !file.getContentType().startsWith("image/")) {
+            throw new BadRequestException("Profile photo must be an image file.");
+        }
+        User user = findById(userId);
+        String oldUrl = user.getProfilePhotoUrl();
+        String url = fileStorageService.uploadFile(file, "user_photos");
+        user.setProfilePhotoUrl(url);
+        userRepository.save(user);
+
+        // doctors: keep the marketplace profile photo in sync with the account photo
+        doctorProfileRepository.findByUserId(userId).ifPresent(profile -> {
+            profile.setProfilePhotoUrl(url);
+            doctorProfileRepository.save(profile);
+        });
+
+        if (oldUrl != null && oldUrl.startsWith("/files/")) {
+            fileStorageService.deleteFile(oldUrl);
+        }
+        return user;
     }
 }
