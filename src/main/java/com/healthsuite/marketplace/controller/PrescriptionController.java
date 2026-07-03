@@ -8,6 +8,7 @@ import com.healthsuite.marketplace.dto.response.PrescriptionResponse;
 import com.healthsuite.marketplace.entity.PrescriptionFile;
 import com.healthsuite.marketplace.service.ConsultationRoomService;
 import com.healthsuite.marketplace.service.PrescriptionService;
+import com.healthsuite.marketplace.service.RatingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Validator;
@@ -30,6 +31,7 @@ public class PrescriptionController {
 
     private final PrescriptionService prescriptionService;
     private final ConsultationRoomService consultationRoomService;
+    private final RatingService ratingService;
     private final ObjectMapper objectMapper;
     private final Validator validator;
 
@@ -75,6 +77,37 @@ public class PrescriptionController {
             .contentType(mediaType)
             .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + file.getFileName() + "\"")
             .body(new FileSystemResource(file.getFilePath()));
+    }
+
+    @GetMapping("/api/marketplace/consultations/{id}/prescription/pdf")
+    public ResponseEntity<byte[]> downloadPdf(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        byte[] pdf = prescriptionService.pdf(id, principal.getId());
+        return ResponseEntity.ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"prescription-" + id + ".pdf\"")
+            .body(pdf);
+    }
+
+    public record RatingRequest(Integer stars, String comment) {}
+
+    /** Patient rates a completed consultation (once). */
+    @PostMapping("/api/marketplace/consultations/{id}/rating")
+    public ResponseEntity<ApiResponse<RatingService.RatingView>> rate(
+            @PathVariable Long id,
+            @RequestBody RatingRequest body,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        if (body.stars() == null) {
+            throw new com.healthsuite.common.exception.BadRequestException("stars is required");
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Thanks for your feedback.",
+            ratingService.rate(id, principal.getId(), body.stars(), body.comment())));
+    }
+
+    @GetMapping("/api/marketplace/consultations/{id}/rating")
+    public ResponseEntity<ApiResponse<RatingService.RatingView>> getRating(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(ratingService.get(id).orElse(null)));
     }
 
     /** Room context for either participant (patient or accepting doctor). */

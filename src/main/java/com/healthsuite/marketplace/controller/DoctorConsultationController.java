@@ -3,6 +3,7 @@ package com.healthsuite.marketplace.controller;
 import com.healthsuite.auth.security.UserPrincipal;
 import com.healthsuite.common.response.ApiResponse;
 import com.healthsuite.marketplace.dto.response.ConsultationRequestResponse;
+import com.healthsuite.marketplace.service.DoctorPatientsService;
 import com.healthsuite.marketplace.service.MarketplaceService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,13 @@ import java.util.List;
 public class DoctorConsultationController {
 
     private final MarketplaceService marketplaceService;
+    private final DoctorPatientsService doctorPatientsService;
+
+    @GetMapping("/patients")
+    public ResponseEntity<ApiResponse<List<DoctorPatientsService.PatientSummary>>> getMyPatients(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.ok(doctorPatientsService.getMyPatients(principal.getId())));
+    }
 
     @GetMapping("/queue")
     public ResponseEntity<ApiResponse<List<ConsultationRequestResponse>>> getQueue(

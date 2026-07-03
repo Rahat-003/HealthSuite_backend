@@ -71,6 +71,10 @@ public class DoctorProfile extends BaseEntity {
     @Builder.Default
     private Integer totalConsultations = 0;
 
+    @Column(name = "rating_count", nullable = false)
+    @Builder.Default
+    private Integer ratingCount = 0;
+
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
 }

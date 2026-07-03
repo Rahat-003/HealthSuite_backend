@@ -64,6 +64,7 @@ public class MarketplaceService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PlatformSettingsService platformSettingsService;
+    private final com.healthsuite.notification.NotificationService notificationService;
 
     // ── Doctor registration ────────────────────────────────────────────────
 
@@ -172,7 +173,12 @@ public class MarketplaceService {
             .toList();
         request.getOffers().addAll(offers);
 
-        return ConsultationRequestResponse.from(consultationRequestRepository.save(request));
+        ConsultationRequestResponse response = ConsultationRequestResponse.from(consultationRequestRepository.save(request));
+        doctors.forEach(d -> notificationService.notify(
+            d.getUserId(), "NEW_CASE", "New case waiting in your queue",
+            "A patient is looking for a consultation \u2014 first response takes the case.",
+            "/doctor/triage"));
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -311,6 +317,11 @@ public class MarketplaceService {
         request.setStatus(ConsultationStatus.ACTIVE);
 
         log.info("Doctor {} accepted consultation {}", profile.getId(), consultationId);
+        notificationService.notify(
+            request.getPatientId(), "CASE_ACCEPTED",
+            profile.getFullName() + " accepted your consultation",
+            "Join the video call whenever you are ready.",
+            "/consultations");
         return ConsultationRequestResponse.from(
             consultationRequestRepository.save(request),
             consultationMediaRepository.findByConsultationId(consultationId),
