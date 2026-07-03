@@ -5,7 +5,10 @@ import com.healthsuite.common.exception.FamilyAccessDeniedException;
 import com.healthsuite.common.exception.ResourceNotFoundException;
 import com.healthsuite.common.exception.ShareTokenException;
 import com.healthsuite.common.response.PagedResponse;
+import com.healthsuite.family.entity.FamilyRecordShare;
+import com.healthsuite.family.enums.ShareScope;
 import com.healthsuite.family.service.FamilyMeshService;
+import com.healthsuite.family.service.FamilyRecordShareService;
 import com.healthsuite.phr.dto.request.CreateVisitRequest;
 import com.healthsuite.phr.dto.response.MedicalVisitResponse;
 import com.healthsuite.phr.entity.Diagnosis;
@@ -15,6 +18,7 @@ import com.healthsuite.phr.repository.MedicalVisitRepository;
 import com.healthsuite.phr.repository.VisitDocumentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
@@ -33,6 +37,7 @@ public class MedicalVisitService {
     private final VisitDocumentRepository documentRepository;
     private final FileStorageService storageService;
     private final FamilyMeshService familyMeshService;
+    private final FamilyRecordShareService recordShareService;
 
     @Transactional
     public MedicalVisitResponse createVisit(CreateVisitRequest request, Long userId) {
@@ -88,8 +93,9 @@ public class MedicalVisitService {
             return MedicalVisitResponse.from(visit);
         }
 
-        // Verified family member path
-        if (familyMeshService.canAccess(requesterId, visit.getUserId())) {
+        // Verified family member path — the owner must also have granted access
+        if (familyMeshService.canAccess(requesterId, visit.getUserId())
+                && recordShareService.allowsVisit(visit.getUserId(), requesterId, visitId)) {
             return MedicalVisitResponse.from(visit);
         }
 
@@ -97,7 +103,8 @@ public class MedicalVisitService {
     }
 
     /**
-     * List visits for another user — requires verified family relationship.
+     * List visits for another user — requires a verified family relationship
+     * AND an explicit share grant from the owner (ALL, or the SELECTED subset).
      */
     @Transactional(readOnly = true)
     public PagedResponse<MedicalVisitResponse> getFamilyMemberVisits(Long targetUserId,
@@ -106,9 +113,15 @@ public class MedicalVisitService {
         if (!familyMeshService.canAccess(requesterId, targetUserId)) {
             throw new FamilyAccessDeniedException();
         }
-        return PagedResponse.from(
-                visitRepository.findByUserIdOrderByVisitDateDesc(targetUserId, pageable)
-                        .map(MedicalVisitResponse::from));
+        FamilyRecordShare grant = recordShareService.findGrant(targetUserId, requesterId)
+                .orElseThrow(() -> new FamilyAccessDeniedException(
+                        "This family member has not shared their health records with you"));
+
+        Page<MedicalVisit> page = grant.getScope() == ShareScope.ALL
+                ? visitRepository.findByUserIdOrderByVisitDateDesc(targetUserId, pageable)
+                : visitRepository.findByUserIdAndIdInOrderByVisitDateDesc(
+                        targetUserId, grant.getVisitIds(), pageable);
+        return PagedResponse.from(page.map(MedicalVisitResponse::from));
     }
 
     @Transactional

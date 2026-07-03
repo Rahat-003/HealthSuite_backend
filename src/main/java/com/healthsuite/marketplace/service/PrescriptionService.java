@@ -18,6 +18,7 @@ import com.healthsuite.phr.entity.Diagnosis;
 import com.healthsuite.phr.entity.MedicalVisit;
 import com.healthsuite.phr.entity.Medication;
 import com.healthsuite.phr.enums.MealTiming;
+import com.healthsuite.family.service.FamilyRecordShareService;
 import com.healthsuite.phr.repository.MedicalVisitRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,7 @@ public class PrescriptionService {
     private final MedicalVisitRepository medicalVisitRepository;
     private final NotificationService notificationService;
     private final RxPdfService rxPdfService;
+    private final FamilyRecordShareService recordShareService;
 
     /**
      * Doctor submits the prescription for an ACTIVE consultation they accepted.
@@ -170,10 +172,21 @@ public class PrescriptionService {
             .orElseThrow(() -> new ResourceNotFoundException("Prescription file", fileId));
     }
 
+    /**
+     * Read access: the patient, the prescribing doctor, or a family member the
+     * auto-filed visit for this consultation has been shared with (the Rx is
+     * part of that visit's record, so a visit grant carries it along).
+     */
     private void requireParticipant(Prescription p, Long userId) {
         boolean isPatient = p.getPatientId().equals(userId);
         boolean isDoctor  = p.getDoctorProfile().getUserId().equals(userId);
-        if (!isPatient && !isDoctor) {
+        if (isPatient || isDoctor) return;
+
+        boolean sharedViaFamily = medicalVisitRepository
+            .findFirstByConsultationId(p.getConsultation().getId())
+            .map(v -> recordShareService.allowsVisit(p.getPatientId(), userId, v.getId()))
+            .orElse(false);
+        if (!sharedViaFamily) {
             throw new UnauthorizedException("You do not have access to this prescription.");
         }
     }
@@ -191,6 +204,7 @@ public class PrescriptionService {
                 .doctorSpecialty(doctor.getSpecialty())
                 .hospitalName("HealthSuite video consultation")
                 .notes(buildVisitNotes(p))
+                .consultationId(p.getConsultation().getId())
                 .build();
 
             if (p.getDiagnosis() != null) {

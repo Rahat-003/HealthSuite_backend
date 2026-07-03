@@ -35,6 +35,10 @@ public class FamilyMember extends BaseEntity {
     @Builder.Default
     private FamilyRelationStatus status = FamilyRelationStatus.PENDING_VERIFICATION;
 
+    /** How the member relates to the owner, as declared by the owner (e.g. MOTHER). */
+    @Column(length = 30)
+    private String relationship;
+
     @Column(name = "verified_at")
     private Instant verifiedAt;
 }
