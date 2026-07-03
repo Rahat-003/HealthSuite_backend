@@ -55,6 +55,8 @@ public class SecurityConfig {
                         .requestMatchers("/files/**").permitAll()
                         // Actuator health
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // Consultation signaling — JWT verified in the WS handshake interceptor
+                        .requestMatchers("/ws/**").permitAll()
                         // Support-only ticket operations
                         .requestMatchers("/api/concierge/tickets/queue").hasRole("SUPPORT")
                         .requestMatchers(HttpMethod.PUT, "/api/concierge/tickets/*/claim").hasRole("SUPPORT")
