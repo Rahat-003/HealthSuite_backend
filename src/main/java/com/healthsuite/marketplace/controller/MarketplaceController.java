@@ -10,11 +10,13 @@ import com.healthsuite.marketplace.dto.response.ConsultationMediaResponse;
 import com.healthsuite.marketplace.dto.response.ConsultationRequestResponse;
 import com.healthsuite.marketplace.dto.response.DoctorDocumentResponse;
 import com.healthsuite.marketplace.dto.response.DoctorProfileResponse;
+import com.healthsuite.marketplace.dto.response.DoctorReviewsResponse;
 import com.healthsuite.marketplace.dto.response.SpecialtyResponse;
 import com.healthsuite.marketplace.entity.ConsultationMedia;
 import com.healthsuite.marketplace.enums.ConsultationMediaType;
 import com.healthsuite.marketplace.enums.DoctorDocumentType;
 import com.healthsuite.marketplace.service.MarketplaceService;
+import com.healthsuite.marketplace.service.RatingService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +44,7 @@ import java.util.List;
 public class MarketplaceController {
 
     private final MarketplaceService marketplaceService;
+    private final RatingService ratingService;
 
     // ── Specialty catalog (public) ────────────────────────────────────────
 
@@ -66,6 +69,11 @@ public class MarketplaceController {
     @GetMapping("/doctors/{id}")
     public ResponseEntity<ApiResponse<DoctorProfileResponse>> getDoctorById(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(marketplaceService.getDoctorById(id)));
+    }
+
+    @GetMapping("/doctors/{id}/reviews")
+    public ResponseEntity<ApiResponse<DoctorReviewsResponse>> getDoctorReviews(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(ratingService.reviewsForDoctor(id)));
     }
 
     // ── Doctor self-registration ──────────────────────────────────────────

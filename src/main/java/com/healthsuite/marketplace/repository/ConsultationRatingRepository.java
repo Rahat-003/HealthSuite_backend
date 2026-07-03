@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 public interface ConsultationRatingRepository extends JpaRepository<ConsultationRating, Long> {
@@ -13,6 +14,11 @@ public interface ConsultationRatingRepository extends JpaRepository<Consultation
     Optional<ConsultationRating> findByConsultationId(Long consultationId);
 
     boolean existsByConsultationId(Long consultationId);
+
+    List<ConsultationRating> findTop50ByDoctorProfileIdOrderByCreatedAtDesc(Long doctorProfileId);
+
+    @Query("SELECT r.stars, COUNT(r) FROM ConsultationRating r WHERE r.doctorProfile.id = :doctorProfileId GROUP BY r.stars")
+    List<Object[]> starBreakdownForDoctor(@Param("doctorProfileId") Long doctorProfileId);
 
     @Query("SELECT COALESCE(AVG(r.stars), 0) FROM ConsultationRating r WHERE r.doctorProfile.id = :doctorProfileId")
     BigDecimal averageForDoctor(@Param("doctorProfileId") Long doctorProfileId);
