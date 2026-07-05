@@ -43,4 +43,14 @@ public interface ConsultationOfferRepository extends JpaRepository<ConsultationO
         @Param("doctorProfileId") Long doctorProfileId,
         @Param("status") OfferStatus status
     );
+
+    @Query("""
+        SELECT o FROM ConsultationOffer o
+        JOIN FETCH o.request r
+        JOIN FETCH o.doctorProfile d
+        WHERE d.userId = :doctorUserId
+        AND o.status = 'ACCEPTED'
+        AND r.status = 'ACTIVE'
+        """)
+    List<ConsultationOffer> findActiveAcceptedForDoctorUser(@Param("doctorUserId") Long doctorUserId);
 }

@@ -1,6 +1,7 @@
 package com.healthsuite.marketplace.repository;
 
 import com.healthsuite.marketplace.entity.ConsultationRequest;
+import com.healthsuite.marketplace.enums.ConsultationStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,6 +17,8 @@ public interface ConsultationRequestRepository extends JpaRepository<Consultatio
     Page<ConsultationRequest> findByPatientIdOrderByCreatedAtDesc(Long patientId, Pageable pageable);
 
     List<ConsultationRequest> findByPatientId(Long patientId);
+
+    List<ConsultationRequest> findByPatientIdAndStatus(Long patientId, ConsultationStatus status);
 
     @Query("""
         SELECT COALESCE(SUM(r.upfrontAmountBdt), 0) FROM ConsultationRequest r

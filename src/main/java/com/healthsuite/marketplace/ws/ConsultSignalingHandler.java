@@ -1,7 +1,9 @@
 package com.healthsuite.marketplace.ws;
 
 import com.healthsuite.marketplace.service.ConsultationRoomService.Role;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -22,13 +24,32 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Component
 @Slf4j
+@RequiredArgsConstructor
 public class ConsultSignalingHandler extends TextWebSocketHandler {
 
     public static final String ATTR_CONSULTATION_ID = "consultationId";
     public static final String ATTR_ROLE = "role";
     public static final String ATTR_USER_ID = "userId";
 
+    private final ApplicationEventPublisher eventPublisher;
+
     private final Map<Long, Map<Role, WebSocketSession>> rooms = new ConcurrentHashMap<>();
+
+    /** A participant connected to a room while the other seat was empty. */
+    public record PeerJoinedEvent(Long consultationId, Role joinerRole, Long joinerUserId) {}
+
+    /** Live presence check for the given seat (used by the room-activity poll). */
+    public boolean isSeatOccupied(Long consultationId, Role role) {
+        Map<Role, WebSocketSession> room = rooms.get(consultationId);
+        if (room == null) return false;
+        WebSocketSession session = room.get(role);
+        return session != null && session.isOpen();
+    }
+
+    /** Cheap short-circuit: no occupied rooms means nothing to look up. */
+    public boolean anyRoomOccupied() {
+        return !rooms.isEmpty();
+    }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws IOException {
@@ -46,6 +67,10 @@ public class ConsultSignalingHandler extends TextWebSocketHandler {
         send(session, "{\"type\":\"room-state\",\"peerPresent\":" + peerPresent + "}");
         if (peerPresent) {
             send(peer, "{\"type\":\"peer-joined\"}");
+        } else if (previous == null) {
+            // First connection into an empty room (not a reconnect): tell the absent peer
+            Long userId = (Long) session.getAttributes().get(ATTR_USER_ID);
+            eventPublisher.publishEvent(new PeerJoinedEvent(consultationId, role, userId));
         }
         log.info("WS joined: consultation={} role={} peerPresent={}", consultationId, role, peerPresent);
     }

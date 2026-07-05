@@ -6,9 +6,11 @@ import com.healthsuite.marketplace.dto.request.PrescriptionRequest;
 import com.healthsuite.marketplace.dto.response.ConsultationRequestResponse;
 import com.healthsuite.marketplace.dto.response.PrescriptionResponse;
 import com.healthsuite.marketplace.entity.PrescriptionFile;
+import com.healthsuite.marketplace.dto.response.LiveRoomResponse;
 import com.healthsuite.marketplace.service.ConsultationRoomService;
 import com.healthsuite.marketplace.service.PrescriptionService;
 import com.healthsuite.marketplace.service.RatingService;
+import com.healthsuite.marketplace.service.RoomPresenceService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Validator;
@@ -32,6 +34,7 @@ public class PrescriptionController {
     private final PrescriptionService prescriptionService;
     private final ConsultationRoomService consultationRoomService;
     private final RatingService ratingService;
+    private final RoomPresenceService roomPresenceService;
     private final ObjectMapper objectMapper;
     private final Validator validator;
 
@@ -108,6 +111,13 @@ public class PrescriptionController {
     @GetMapping("/api/marketplace/consultations/{id}/rating")
     public ResponseEntity<ApiResponse<RatingService.RatingView>> getRating(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(ratingService.get(id).orElse(null)));
+    }
+
+    /** Rooms where the other participant is live right now (drives the join modal). */
+    @GetMapping("/api/marketplace/consultations/live-rooms")
+    public ResponseEntity<ApiResponse<List<LiveRoomResponse>>> liveRooms(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.ok(roomPresenceService.liveRooms(principal.getId())));
     }
 
     /** Room context for either participant (patient or accepting doctor). */

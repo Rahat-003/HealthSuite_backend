@@ -167,10 +167,17 @@ public class MarketplaceController {
             throw new ResourceNotFoundException("Media file missing on disk", mediaId);
         }
         String contentType = Files.probeContentType(path);
+        if (contentType == null) {
+            // Legacy uploads carry a generic .webm name regardless of media type
+            contentType = switch (media.getMediaType()) {
+                case AUDIO -> "audio/webm";
+                case VIDEO -> "video/webm";
+                case IMAGE -> MediaType.IMAGE_JPEG_VALUE;
+            };
+        }
 
         return ResponseEntity.ok()
-            .contentType(MediaType.parseMediaType(
-                contentType != null ? contentType : MediaType.APPLICATION_OCTET_STREAM_VALUE))
+            .contentType(MediaType.parseMediaType(contentType))
             .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + media.getFileName() + "\"")
             .body(new FileSystemResource(path));
     }
