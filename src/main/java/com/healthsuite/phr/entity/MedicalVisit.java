@@ -39,6 +39,10 @@ public class MedicalVisit extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    /** Set when this visit was auto-filed from a marketplace consultation. */
+    @Column(name = "consultation_id")
+    private Long consultationId;
+
     @OneToMany(mappedBy = "visit", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<Diagnosis> diagnoses = new ArrayList<>();

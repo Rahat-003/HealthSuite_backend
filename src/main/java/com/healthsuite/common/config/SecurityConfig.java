@@ -46,17 +46,24 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         // Doctor directory — public read
                         .requestMatchers(HttpMethod.GET, "/api/doctors/**").permitAll()
+                        // Marketplace doctor listing & specialty catalog — public read
+                        .requestMatchers(HttpMethod.GET, "/api/marketplace/doctors", "/api/marketplace/doctors/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/marketplace/specialties").permitAll()
                         // Share-token based record access — validation done in service layer
                         .requestMatchers(HttpMethod.GET, "/api/phr/shared/**").permitAll()
                         // Local file storage — served without auth
                         .requestMatchers("/files/**").permitAll()
                         // Actuator health
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        // Consultation signaling — JWT verified in the WS handshake interceptor
+                        .requestMatchers("/ws/**").permitAll()
                         // Support-only ticket operations
                         .requestMatchers("/api/concierge/tickets/queue").hasRole("SUPPORT")
                         .requestMatchers(HttpMethod.PUT, "/api/concierge/tickets/*/claim").hasRole("SUPPORT")
                         .requestMatchers(HttpMethod.PUT, "/api/concierge/tickets/*/confirm").hasRole("SUPPORT")
                         .requestMatchers(HttpMethod.PUT, "/api/concierge/tickets/*/cancel").hasRole("SUPPORT")
+                        // Doctor workspace
+                        .requestMatchers("/api/doctor/**").hasRole("DOCTOR")
                         // Admin-only
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         // All other requests require authentication

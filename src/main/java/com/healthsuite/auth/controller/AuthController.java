@@ -1,5 +1,6 @@
 package com.healthsuite.auth.controller;
 
+import com.healthsuite.auth.dto.request.DoctorRegisterRequest;
 import com.healthsuite.auth.dto.request.LoginRequest;
 import com.healthsuite.auth.dto.request.RefreshTokenRequest;
 import com.healthsuite.auth.dto.request.RegisterRequest;
@@ -32,6 +33,14 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Account created successfully", authService.register(request)));
+    }
+
+    @Operation(summary = "Register as a doctor", description = "Creates a user account and submits a doctor profile for admin approval in one step.")
+    @SecurityRequirements
+    @PostMapping("/register/doctor")
+    public ResponseEntity<ApiResponse<AuthResponse>> registerDoctor(@Valid @RequestBody DoctorRegisterRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Doctor account created. Pending admin approval.", authService.registerDoctor(request)));
     }
 
     @Operation(summary = "Login with email and password")

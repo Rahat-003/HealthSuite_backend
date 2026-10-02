@@ -50,7 +50,7 @@ docker compose up --build
 
 - PostgreSQL starts first; the backend waits for its health check before connecting.
 - Flyway runs all 5 migrations automatically on first boot.
-- The API is available at `http://localhost:8080`.
+- The API is available at `http://localhost:20580`.
 
 ### Useful commands
 
@@ -100,7 +100,7 @@ mvn spring-boot:run
 
 Or run `HealthSuiteApplication.java` from your IDE with the environment variables configured.
 
-The API is available at `http://localhost:8080`.
+The API is available at `http://localhost:20580`.
 
 ---
 
@@ -122,7 +122,7 @@ The `test` profile is activated automatically via `@ActiveProfiles("test")` in t
 Once the app is running, open:
 
 ```
-http://localhost:8080/swagger-ui.html
+http://localhost:20580/swagger-ui.html
 ```
 
 To call authenticated endpoints:
@@ -130,14 +130,14 @@ To call authenticated endpoints:
 2. Click **Authorize** in the top-right of the Swagger UI.
 3. Paste the token (without the `Bearer ` prefix) into the `bearerAuth` field.
 
-OpenAPI JSON spec: `http://localhost:8080/v3/api-docs`
+OpenAPI JSON spec: `http://localhost:20580/v3/api-docs`
 
 ---
 
 ## Health check
 
 ```bash
-curl http://localhost:8080/actuator/health
+curl http://localhost:20580/actuator/health
 ```
 
 Expected response:
@@ -161,7 +161,7 @@ Expected response:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | `jdbc:postgresql://localhost:5432/healthsuite` | Full JDBC URL |
+| `DATABASE_URL` | Yes | `jdbc:postgresql://localhost:42900/healthsuite` | Full JDBC URL |
 | `DATABASE_USERNAME` | Yes | `postgres` | DB username |
 | `DATABASE_PASSWORD` | Yes | — | DB password |
 | `JWT_SECRET` | Yes | dev fallback (insecure) | HMAC-SHA256 key, min 32 chars |

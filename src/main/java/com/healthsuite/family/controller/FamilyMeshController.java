@@ -3,8 +3,11 @@ package com.healthsuite.family.controller;
 import com.healthsuite.auth.security.UserPrincipal;
 import com.healthsuite.common.response.ApiResponse;
 import com.healthsuite.family.dto.request.AddFamilyMemberRequest;
+import com.healthsuite.family.dto.request.UpdateRecordShareRequest;
 import com.healthsuite.family.dto.response.FamilyMemberResponse;
+import com.healthsuite.family.dto.response.RecordShareResponse;
 import com.healthsuite.family.service.FamilyMeshService;
+import com.healthsuite.family.service.FamilyRecordShareService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -23,6 +26,7 @@ import java.util.List;
 public class FamilyMeshController {
 
     private final FamilyMeshService familyMeshService;
+    private final FamilyRecordShareService recordShareService;
 
     @Operation(summary = "Send a family link request", description = "Looks up the target user by Bangladeshi phone number and creates a PENDING tie.")
     @PostMapping("/members")
@@ -31,7 +35,26 @@ public class FamilyMeshController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Family member request sent",
-                        familyMeshService.addFamilyMember(request.phoneNumber(), principal.getId())));
+                        familyMeshService.addFamilyMember(
+                                request.phoneNumber(), request.relationship(), principal.getId())));
+    }
+
+    @Operation(summary = "My record-sharing grants", description = "What I currently share with each family member.")
+    @GetMapping("/shares")
+    public ResponseEntity<ApiResponse<List<RecordShareResponse>>> getMyShares(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.ok(recordShareService.getMyShares(principal.getId())));
+    }
+
+    @Operation(summary = "Set what a family member can see",
+            description = "Scope ALL shares the full record, SELECTED shares chosen visits, NONE withdraws access.")
+    @PutMapping("/shares/{granteeUserId}")
+    public ResponseEntity<ApiResponse<RecordShareResponse>> updateShare(
+            @PathVariable Long granteeUserId,
+            @Valid @RequestBody UpdateRecordShareRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.ok("Sharing updated",
+                recordShareService.updateShare(principal.getId(), granteeUserId, request)));
     }
 
     @GetMapping("/members")

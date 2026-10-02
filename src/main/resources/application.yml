@@ -8,7 +8,7 @@ spring:
       enabled: true
 
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5450/healthsuite}
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:42900/healthsuite}
     username: ${DATABASE_USERNAME:postgres}
     password: ${DATABASE_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
@@ -46,7 +46,7 @@ spring:
       max-request-size: 25MB
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:20580}
   error:
     include-stacktrace: never
     include-message: never
@@ -63,6 +63,8 @@ app:
     provider: local
     local:
       path: ${user.home}/HealthSuite/uploads
+    consult:
+      path: ${user.home}/HealthSuite/user_consult
 
   # ── Add when ready ────────────────────────────────────────────────────────
   # aws:

@@ -1,5 +1,6 @@
 package com.healthsuite.auth.service;
 
+import com.healthsuite.auth.dto.request.DoctorRegisterRequest;
 import com.healthsuite.auth.dto.request.LoginRequest;
 import com.healthsuite.auth.dto.request.RegisterRequest;
 import com.healthsuite.auth.dto.request.SocialAuthRequest;
@@ -15,6 +16,9 @@ import com.healthsuite.auth.security.JwtService;
 import com.healthsuite.auth.security.UserPrincipal;
 import com.healthsuite.common.exception.ConflictException;
 import com.healthsuite.common.exception.UnauthorizedException;
+import com.healthsuite.marketplace.entity.DoctorProfile;
+import com.healthsuite.marketplace.enums.DoctorStatus;
+import com.healthsuite.marketplace.repository.DoctorProfileRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -40,6 +44,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final RefreshTokenService refreshTokenService;
     private final OAuth2UserService oAuth2UserService;
+    private final DoctorProfileRepository doctorProfileRepository;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -62,6 +67,48 @@ public class AuthService {
                 .build();
 
         user = userRepository.save(user);
+        return buildAuthResponse(user);
+    }
+
+    @Transactional
+    public AuthResponse registerDoctor(DoctorRegisterRequest request) {
+        if (userRepository.existsByEmail(request.email())) {
+            throw new ConflictException("Email address is already registered");
+        }
+        if (userRepository.existsByPhoneNumber(request.phoneNumber())) {
+            throw new ConflictException("Phone number is already registered");
+        }
+        if (doctorProfileRepository.existsByLicenseNumber(request.licenseNumber())) {
+            throw new ConflictException("A doctor profile with this license number already exists");
+        }
+
+        Role userRole = roleRepository.findByName(RoleName.ROLE_USER)
+                .orElseThrow(() -> new IllegalStateException("ROLE_USER not seeded"));
+
+        User user = User.builder()
+                .email(request.email())
+                .password(passwordEncoder.encode(request.password()))
+                .phoneNumber(request.phoneNumber())
+                .fullName(request.fullName())
+                .roles(Set.of(userRole))
+                .build();
+        user = userRepository.save(user);
+
+        DoctorProfile profile = DoctorProfile.builder()
+                .userId(user.getId())
+                .fullName(user.getFullName())
+                .specialty(request.specialty())
+                .qualifications(request.qualifications())
+                .experienceYears(request.experienceYears())
+                .licenseNumber(request.licenseNumber())
+                .bio(request.bio())
+                .hospitalAffiliation(request.hospitalAffiliation())
+                .availabilityNote(request.availabilityNote())
+                .consultationFeeBdt(request.consultationFeeBdt())
+                .status(DoctorStatus.PENDING)
+                .build();
+        doctorProfileRepository.save(profile);
+
         return buildAuthResponse(user);
     }
 

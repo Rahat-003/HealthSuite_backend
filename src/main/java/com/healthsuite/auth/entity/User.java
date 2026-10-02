@@ -4,9 +4,11 @@ import com.healthsuite.auth.enums.AuthProvider;
 import com.healthsuite.common.entity.BaseEntity;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "users")
@@ -20,6 +22,10 @@ public class User extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @UuidGenerator
+    @Column(name = "user_uuid", nullable = false, unique = true, updatable = false)
+    private UUID userUuid;
 
     @Column(nullable = false, unique = true, length = 255)
     private String email;
@@ -48,6 +54,9 @@ public class User extends BaseEntity {
 
     @Column(name = "fcm_token", length = 500)
     private String fcmToken;
+
+    @Column(name = "profile_photo_url", length = 1000)
+    private String profilePhotoUrl;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
