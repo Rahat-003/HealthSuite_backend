@@ -6,16 +6,16 @@ join table directly in Postgres.
 
 ## 1. Connect to the database
 
-The Postgres container is `healthsuite-postgres`, exposed on host port **5450**
-(container port 5432). Credentials come from `DATABASE_USERNAME` /
+The Postgres container is `healthsuite-postgres`, exposed on host port **42900**
+(the container also listens on 42900). Credentials come from `DATABASE_USERNAME` /
 `DATABASE_PASSWORD` in your `.env`.
 
 ```bash
 # Inside the container (recommended)
-docker exec -it healthsuite-postgres psql -U <DATABASE_USERNAME> -d healthsuite
+docker exec -it healthsuite-postgres psql -p 42900 -U <DATABASE_USERNAME> -d healthsuite
 
 # Or from the host
-psql -h localhost -p 5450 -U <DATABASE_USERNAME> -d healthsuite
+psql -h localhost -p 42900 -U <DATABASE_USERNAME> -d healthsuite
 ```
 
 ## 2. Check the available roles
@@ -69,7 +69,7 @@ roles the user already has.
 ### One-liner without opening a psql session
 
 ```bash
-docker exec -it healthsuite-postgres psql -U <DATABASE_USERNAME> -d healthsuite -c \
+docker exec -it healthsuite-postgres psql -p 42900 -U <DATABASE_USERNAME> -d healthsuite -c \
   "INSERT INTO user_roles (user_id, role_id)
    SELECT u.id, r.id FROM users u, roles r
    WHERE u.email = 'your@email.com' AND r.name = 'ROLE_ADMIN'

@@ -31,7 +31,7 @@ RUN java -cp "dependencies/BOOT-INF/lib/*:snapshot-dependencies/BOOT-INF/lib/*" 
     com.microsoft.playwright.CLI install chromium 2>/dev/null || \
     echo "Playwright browser install skipped (will use JSoup fallback)"
 
-EXPOSE 8080
+EXPOSE 20580
 
 # Use layered startup for faster boot
 ENTRYPOINT ["java", \
