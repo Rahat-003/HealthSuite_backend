@@ -39,3 +39,6 @@ logs/
 
 # Spring Boot DevTools restart trigger
 .reloadtrigger
+
+# Private career notes — never commit
+career_tech_roadmap.txt
