@@ -9,7 +9,8 @@ docker compose up -d postgres            # DB on 42900 (host and container); rea
 mvn spring-boot:run                      # app on :20580 (override with SERVER_PORT)
 mvn -q compile -DskipTests               # fast typecheck — run after every change
 mvn -q package -DskipTests               # rebuild jar (a stale jar 404s new endpoints)
-mvn test                                 # only a context-load smoke test, on H2
+mvn test                                 # unit tests (*Test, Mockito) — no Docker
+mvn verify                               # + integration tests (*IT, Testcontainers Postgres) + JaCoCo — needs Docker
 ```
 
 - Swagger UI: `http://localhost:20580/swagger-ui.html` · health: `/actuator/health`
@@ -56,7 +57,16 @@ The empty `api/`, `domain/`, `dto/`, `service/`, `security/`, `config/`, `except
 
 - Schema lives **only** in `src/main/resources/db/migration/V{n}__snake_case.sql`. `ddl-auto: validate` means an entity that doesn't match the schema fails startup.
 - Add a new `V{next}` file for every change and never edit an applied migration (`validate-on-migrate: true` rejects checksum changes). The latest is **V15**.
-- Tests run on H2 with `ddl-auto: create-drop` and Flyway off, so Postgres-specific SQL in migrations isn't covered by `mvn test`. Boot against Postgres to verify a migration.
+- Integration tests run every Flyway migration against a real Testcontainers PostgreSQL 16, so a broken migration fails `mvn verify` (H2 was removed).
+
+## Tests
+
+- **Unit tests** are named `*Test` and run in Surefire: JUnit 5, Mockito and AssertJ, with no Spring context.
+- **Integration tests** are named `*IT` and run in Failsafe. Annotate them with `support/IntegrationTest` (full context, `test` profile, shared Postgres container from `support/PostgresContainerConfig`).
+- Integration tests share one database and don't roll back, so use `support/TestData.email()` / `TestData.phone()` for unique users. Never rely on table counts.
+- For HTTP-level tests, add `@AutoConfigureMockMvc` and get a real JWT through `/api/auth/register` or `/api/auth/login`. `@WithMockUser` doesn't produce a `UserPrincipal`, so controllers that read `principal.getId()` would hit a null pointer.
+- Testcontainers is pinned to 1.21.4 in `pom.xml`, because Docker 29 rejects the older client API. Don't drop the override.
+- CI is `.github/workflows/ci.yml`: `mvn verify` on every push and PR, and on `main` it also pushes the image to `ghcr.io/rahat-003/healthsuite-backend`.
 - There's no seeded admin. Grant ADMIN/SUPPORT/DOCTOR by inserting into `user_roles` — see `manual-role-grant.md`.
 
 ## Security

@@ -1,5 +1,7 @@
 # HealthSuite Backend
 
+[![CI](https://github.com/Rahat-003/HealthSuite_backend/actions/workflows/ci.yml/badge.svg)](https://github.com/Rahat-003/HealthSuite_backend/actions/workflows/ci.yml)
+
 REST API and real-time signaling server for **HealthSuite**, a healthcare platform for Bangladesh. It covers:
 - **Personal health records (PHR):** visits, diagnoses, medications and documents.
 - **Family record sharing** with fine-grained grants.
@@ -26,7 +28,8 @@ REST API and real-time signaling server for **HealthSuite**, a healthcare platfo
 | Boilerplate | Lombok |
 | File storage | Local disk (active); AWS S3 SDK 2.26 wired but disabled |
 | Push notifications | Firebase Admin 9.3 (FCM), optional and disabled unless configured |
-| Testing | JUnit 5, Spring Boot Test, Spring Security Test, H2 |
+| Testing | JUnit 5, Mockito, AssertJ, Spring Boot Test, Spring Security Test (MockMvc), **Testcontainers** (real PostgreSQL), JaCoCo coverage |
+| CI/CD | **GitHub Actions** (build, unit + integration tests, coverage report) → Docker image pushed to **GitHub Container Registry** |
 | Build / packaging | Maven, multi-stage Dockerfile, Docker Compose |
 
 ---
@@ -181,9 +184,36 @@ Roles are carried inside the JWT, so log out and back in after changing them.
 
 ```bash
 mvn -q compile -DskipTests     # fast compile check
-mvn test                       # tests (H2 in-memory, Flyway disabled)
+mvn test                       # unit tests only (Mockito) — no Docker needed, ~5 s
+mvn verify                     # unit + integration tests + coverage report (needs Docker)
 mvn package -DskipTests        # build target/health-suite-backend-1.0.0.jar
 ```
+
+### Testing
+
+| Kind | Naming | Runs in | What it uses |
+|---|---|---|---|
+| Unit | `*Test` | `mvn test` (Surefire) | JUnit 5 + Mockito, no Spring context |
+| Integration | `*IT` | `mvn verify` (Failsafe) | Full Spring context on a **Testcontainers PostgreSQL 16**, with all Flyway migrations applied |
+
+What's covered:
+- **Authorization rules** for medical records: owner, verified family member with or without a share grant, share tokens (`MedicalVisitServiceTest`).
+- **Refresh-token rotation:** a rotated-out or expired token is rejected (`RefreshTokenServiceTest`, `AuthServiceTest`).
+- **The real security filter chain end to end** (`AuthAndAccessControlIT`):
+  - register, login and JWT validation
+  - a tampered token returns 401
+  - role rules: 401 vs 403 vs 200
+  - validation errors come back as field errors
+- **Concurrency** (`ConciergeClaimConcurrencyIT`): two support agents claim the same ticket at the same instant. The pessimistic row lock (`SELECT … FOR UPDATE`) lets exactly one win; the other gets 409.
+
+The coverage report is at `target/site/jacoco/index.html` after `mvn verify`.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every push and pull request:
+1. `mvn verify` with unit and integration tests. GitHub's runners have Docker, so Testcontainers works there too.
+2. Publishes the coverage summary and uploads the test and coverage reports as artifacts.
+3. On `main`, builds the Docker image and pushes it to `ghcr.io/rahat-003/healthsuite-backend` (tags: short commit SHA and `latest`).
 
 - **Schema changes:** add a new `V{next}__description.sql` migration. Never edit a migration that has already been applied.
 - **File storage:**
