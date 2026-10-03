@@ -66,7 +66,11 @@ The empty `api/`, `domain/`, `dto/`, `service/`, `security/`, `config/`, `except
 - Integration tests share one database and don't roll back, so use `support/TestData.email()` / `TestData.phone()` for unique users. Never rely on table counts.
 - For HTTP-level tests, add `@AutoConfigureMockMvc` and get a real JWT through `/api/auth/register` or `/api/auth/login`. `@WithMockUser` doesn't produce a `UserPrincipal`, so controllers that read `principal.getId()` would hit a null pointer.
 - Testcontainers is pinned to 1.21.4 in `pom.xml`, because Docker 29 rejects the older client API. Don't drop the override.
-- CI is `.github/workflows/ci.yml`: `mvn verify` on every push and PR, and on `main` it also pushes the image to `ghcr.io/rahat-003/healthsuite-backend`.
+- CI is `.github/workflows/ci.yml`: `mvn verify` on every push and PR, and on `main` it also pushes the image to `ghcr.io/rahat-003/healthsuite_backend` (tags `sha-<7-char sha>` and `latest`).
+- CD: the `deploy` job runs on the self-hosted runner `rahat-pc-backend` (labels `self-hosted, linux, healthsuite-server`) on the LAN server Rahat-PC (192.168.0.108).
+  - It copies `deploy/docker-compose.prod.yml` into `/home/rahat/local_server_deploy/healthSuite`, backs up with `pg_dump`, pulls, starts, health-checks and rolls back on failure.
+  - Keep the deploy job restricted to `push` on `main`; never let `pull_request` jobs reach the self-hosted runner.
+  - Server secrets live only in that folder's `.env`. Never add them to the repo.
 - There's no seeded admin. Grant ADMIN/SUPPORT/DOCTOR by inserting into `user_roles` — see `manual-role-grant.md`.
 
 ## Security

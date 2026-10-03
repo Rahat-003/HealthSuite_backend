@@ -12,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE: ghcr.io/rahat-003/healthsuite-backend
+  IMAGE: ghcr.io/rahat-003/healthsuite_backend
 
 jobs:
   build-and-test:
@@ -99,3 +99,89 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to home server
+    needs: docker
+    # Pushes to main only. Never pull_request: this runner executes on a real
+    # machine, so untrusted PR code must not reach it.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, healthsuite-server]
+    concurrency:
+      group: deploy-home-server
+      cancel-in-progress: false        # never kill a deploy halfway through
+    permissions:
+      contents: read
+    env:
+      DEPLOY_DIR: /home/rahat/local_server_deploy/healthSuite
+      # Talk to the local Docker Engine directly, whatever `docker context` is set to
+      DOCKER_HOST: unix:///var/run/docker.sock
+      COMPOSE: docker compose -f docker-compose.prod.yml
+    defaults:
+      run:
+        working-directory: /home/rahat/local_server_deploy/healthSuite
+    steps:
+      - name: Checkout deploy files
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: deploy
+
+      - name: Prepare
+        run: |
+          cp "$GITHUB_WORKSPACE/deploy/docker-compose.prod.yml" .
+          test -f .env || { echo "::error::$DEPLOY_DIR/.env is missing"; exit 1; }
+          # Same tag format the docker job pushes (docker/metadata-action type=sha,format=short)
+          echo "NEW_TAG=sha-${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "PREV_TAG=$(cat .deployed_tag 2>/dev/null || echo none)" >> "$GITHUB_ENV"
+
+      - name: Back up database
+        run: |
+          mkdir -p backups
+          if $COMPOSE ps --status running --services | grep -qx postgres; then
+            file="backups/healthsuite-$(date +%Y%m%d-%H%M%S)-before-${NEW_TAG}.sql.gz"
+            $COMPOSE exec -T postgres sh -c 'pg_dump -p 42900 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' | gzip > "$file"
+            echo "Backup: $file ($(du -h "$file" | cut -f1))"
+            ls -1t backups/*.sql.gz | tail -n +11 | xargs -r rm --   # keep the newest 10
+          else
+            echo "Postgres not running yet (first deploy) — nothing to back up"
+          fi
+
+      - name: Pull image
+        run: BACKEND_TAG="$NEW_TAG" $COMPOSE pull backend
+
+      - name: Start stack
+        run: BACKEND_TAG="$NEW_TAG" $COMPOSE up -d --remove-orphans
+
+      - name: Health check
+        id: health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:20580/actuator/health | grep -q '"status":"UP"'; then
+              echo "$NEW_TAG is healthy"
+              echo "$NEW_TAG" > .deployed_tag
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::$NEW_TAG did not become healthy within 150s"
+          $COMPOSE logs --tail 150 backend
+          exit 1
+
+      - name: Roll back
+        if: failure() && steps.health.outcome == 'failure'
+        run: |
+          if [ "$PREV_TAG" = "none" ]; then
+            echo "::error::No previous version to roll back to"
+            exit 1
+          fi
+          echo "Rolling back to $PREV_TAG"
+          BACKEND_TAG="$PREV_TAG" $COMPOSE up -d backend
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:20580/actuator/health | grep -q '"status":"UP"'; then
+              echo "::warning::Rolled back to $PREV_TAG. Note: Flyway migrations from $NEW_TAG are NOT undone — restore from backups/ if the schema change broke the old version."
+              exit 1   # keep the run red: the new version failed
+            fi
+            sleep 5
+          done
+          echo "::error::Rollback to $PREV_TAG is also unhealthy — check the server manually"
+          exit 1

@@ -213,7 +213,33 @@ The coverage report is at `target/site/jacoco/index.html` after `mvn verify`.
 `.github/workflows/ci.yml` runs on every push and pull request:
 1. `mvn verify` with unit and integration tests. GitHub's runners have Docker, so Testcontainers works there too.
 2. Publishes the coverage summary and uploads the test and coverage reports as artifacts.
-3. On `main`, builds the Docker image and pushes it to `ghcr.io/rahat-003/healthsuite-backend` (tags: short commit SHA and `latest`).
+3. On `main`, builds the Docker image and pushes it to `ghcr.io/rahat-003/healthsuite_backend` (tags: short commit SHA and `latest`).
+4. On `main`, **deploys to a home LAN server** through a self-hosted GitHub Actions runner (see below).
+
+### Continuous deployment (home LAN server)
+
+There's no cloud server. A second laptop on the same Wi-Fi (`Rahat-PC`, 192.168.0.108) runs a **self-hosted GitHub Actions runner**. The runner makes an outbound connection to GitHub, so no port forwarding or public IP is needed.
+
+```
+push to main ─▶ GitHub-hosted: mvn verify ─▶ build image ─▶ ghcr.io/rahat-003/healthsuite_backend:sha-<commit>
+                                                                    │
+                       self-hosted runner on Rahat-PC ◀─ deploy job ┘
+                       back up DB ─▶ pull ─▶ up -d ─▶ health check ─▶ roll back on failure
+```
+
+- Stack definition: [`deploy/docker-compose.prod.yml`](deploy/docker-compose.prod.yml).
+  - Postgres has no published port, so it's reachable only by the backend.
+  - The backend runs on 20580.
+  - Named volumes hold the database and uploads.
+- The server's deploy folder `/home/rahat/local_server_deploy/healthSuite` holds:
+  - `.env`: the only place real secrets live (`chmod 600`)
+  - `certs/`: self-signed TLS for the upcoming nginx frontend
+  - `backups/`: a `pg_dump` before every deploy, newest 10 kept
+  - `.deployed_tag`: the currently running version
+- Rollback restarts the previous image tag if the new one fails `/actuator/health` within 150 s. Flyway migrations are **not** undone, so restore from `backups/` if a schema change broke the old version.
+- Security: deploy jobs run only on pushes to `main`, never on pull requests, because a self-hosted runner executes workflow code on a real machine.
+
+Open the deployed API at http://192.168.0.108:20580/swagger-ui.html from any device on the Wi-Fi.
 
 - **Schema changes:** add a new `V{next}__description.sql` migration. Never edit a migration that has already been applied.
 - **File storage:**

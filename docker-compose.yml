@@ -23,6 +23,7 @@ services:
     build:
 #      context: ./backend
       dockerfile: Dockerfile
+    image: healthsuite_backend   # Docker image names must be lowercase
     container_name: healthsuite-backend
     restart: unless-stopped
     ports:

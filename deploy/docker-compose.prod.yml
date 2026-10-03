@@ -1,0 +1,54 @@
+# Production stack for the home LAN server (Rahat-PC, 192.168.0.108).
+#
+# The CI deploy job copies this file into /home/rahat/local_server_deploy/healthSuite
+# on every deploy. Secrets live only in that folder's .env (chmod 600), never in git.
+#
+# Manual use, from the deploy folder:
+#   BACKEND_TAG=sha-abc1234 docker compose -f docker-compose.prod.yml up -d
+#   docker compose -f docker-compose.prod.yml logs -f backend
+#   docker compose -f docker-compose.prod.yml exec postgres psql -p 42900 -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+
+name: healthsuite
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: healthsuite-postgres
+    restart: unless-stopped
+    command: ["postgres", "-p", "42900"]
+    env_file: .env                     # POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+    # No `ports:` — the database is reachable only from containers on this compose
+    # network, never from the LAN. Use `docker compose exec postgres …` for admin work.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -p 42900 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  backend:
+    image: ghcr.io/rahat-003/healthsuite_backend:${BACKEND_TAG:-latest}
+    container_name: healthsuite-backend
+    restart: unless-stopped
+    env_file: .env                     # DATABASE_URL (…//postgres:42900/…), credentials, JWT_SECRET, SERVER_PORT, SPRING_PROFILES_ACTIVE
+    ports:
+      - "20580:20580"
+    volumes:
+      - uploads:/root/HealthSuite      # PHR documents + consultation media survive redeploys
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:20580/actuator/health | grep -q '\"status\":\"UP\"'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # frontend (nginx, HTTPS on 30580, mounts ./certs) — added once the frontend image exists
+
+volumes:
+  pgdata:
+  uploads:
